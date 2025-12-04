@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BANCO NEXUS - Acesso Mainframe</title>
+    <!-- Ícones e Fonte Matrix-like -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+
+    <!-- MATRIX RAIN EFFECT -->
+    <canvas id="matrix-canvas"></canvas>
+
+    <div id="app">
+        <aside>
+            <div class="brand">NEXUS<br><span style="font-size:1rem;">SYSTEMS</span></div>
+            <nav>
+                <button onclick="Router.go('hub')" class="active">>_ HUB PRINCIPAL</button>
+                <button onclick="Router.go('agencia')">>_ MAINFRAME (ADMIN)</button>
+                <button onclick="Router.go('atendimento')">>_ TERMINAIS (PÚBLICO)</button>
+                <button onclick="Router.go('internetbanking')">>_ NET_LINK (CLIENTE)</button>
+            </nav>
+            <div style="margin-top:auto; padding: 20px; color: #004400; font-size: 0.8rem; text-align: center; display: none;">
+                CONEXÃO SEGURA<br>ENCRIPTADO V.4.3
+            </div>
+        </aside>
+
+        <main>
+            <!-- 0. HUB -->
+            <section id="view-hub" class="view-section active">
+                <h1>>_ SISTEMA PRONTO</h1>
+                <p>Bem-vindo à Grade Nexus. Selecione um subsistema para interagir.</p>
+                <div class="grid-2" style="margin-top: 50px;">
+                    <div class="card" onclick="Router.go('internetbanking')" style="cursor: pointer; text-align: center; padding: 40px;">
+                        <i class="fas fa-network-wired fa-3x"></i>
+                        <h2 style="margin-top:20px;">NET_LINK</h2>
+                        <p>Protocolo de Acesso Cliente</p>
+                    </div>
+                    <div class="card" onclick="Router.go('atendimento')" style="cursor: pointer; text-align: center; padding: 40px;">
+                        <i class="fas fa-server fa-3x"></i>
+                        <h2 style="margin-top:20px;">NÓ FÍSICO</h2>
+                        <p>Interface de Caixa e ATM</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 1. AGÊNCIA (ADMIN) -->
+            <section id="view-agencia" class="view-section" style="position: relative; height: 100%;">
+                
+                <!-- LOCK SCREEN -->
+                <div id="lock-screen">
+                    <div class="login-box">
+                        <i class="fas fa-fingerprint fa-4x" style="color: var(--matrix-green); margin-bottom: 20px;"></i>
+                        <h3>ACESSO MAINFRAME</h3>
+                        <input type="text" id="admin-user" placeholder="ID USUÁRIO">
+                        <input type="password" id="admin-pass" placeholder="CÓDIGO ACESSO">
+                        <button class="btn" style="width: 100%;" onclick="AdminAuth.login()">DESCRIPTOGRAFAR</button>
+                        <p id="admin-error" style="color: var(--alert); margin-top: 10px;"></p>
+                    </div>
+                </div>
+
+                <!-- ADMIN CONTENT -->
+                <div id="admin-content" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--matrix-green); padding-bottom: 10px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                        <h2>>_ CONTROLE NÚCLEO</h2>
+                        <button class="btn btn-danger" onclick="AdminAuth.logout()">BLOQUEAR SESSÃO</button>
+                    </div>
+
+                    <div class="tab-menu">
+                        <div class="tab-btn active" onclick="Tabs.show('resumo')">MONITOR</div>
+                        <div class="tab-btn" onclick="Tabs.show('atms')">NÓS (ATMs)</div>
+                        <div class="tab-btn" onclick="Tabs.show('caixa')">NÓ HUMANO</div>
+                        <div class="tab-btn" onclick="Tabs.show('contas')">ENTIDADES</div>
+                    </div>
+
+                    <!-- RESUMO -->
+                    <div id="tab-resumo">
+                        <div class="card">
+                            <div class="grid-4" style="text-align: center;">
+                                <div><small>TOTAL GRADE</small><h2 id="adm-total">--</h2></div>
+                                <div><small>COFRE (NÚCLEO)</small><h3 id="adm-cofre" style="color: var(--warn)">--</h3></div>
+                                <div><small>TERMINAIS</small><h3 id="adm-atms">--</h3></div>
+                                <div><small>CAIXA</small><h3 id="adm-caixa-val">--</h3></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ATMs -->
+                    <div id="tab-atms" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                            <h3>CONFIGURAÇÃO DE NÓ</h3>
+                            <button class="btn" onclick="AgenciaManager.calculateDynamic()">[EXEC] DISTRIB_DINAMICA.EXE</button>
+                        </div>
+                        <div id="terminals-grid"></div>
+                    </div>
+
+                    <!-- CAIXA -->
+                    <div id="tab-caixa" style="display: none;">
+                        <div class="card">
+                            <h3>CONTROLE DE NÓ HUMANO</h3>
+                            <div class="grid-2">
+                                <div style="text-align: center; padding: 20px; border: 1px dashed var(--matrix-green);">
+                                    <h1 id="human-cash-balance" style="font-size: 3rem;">0</h1>
+                                    <p>CACHE FÍSICO</p>
+                                </div>
+                                <div>
+                                    <input type="number" id="human-op-val" placeholder="QUANTIA">
+                                    <div class="grid-2">
+                                        <button class="btn" onclick="AgenciaManager.humanRefill()">ABASTECER (COFRE->)</button>
+                                        <button class="btn btn-warn" onclick="AgenciaManager.humanRelieve()">ALIVIAR (->COFRE)</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CONTAS -->
+                    <div id="tab-contas" style="display: none;">
+                        <div class="card" style="overflow-x: auto;">
+                            <h3>ENTIDADES ATIVAS</h3>
+                            <table style="width: 100%; border-collapse: collapse; min-width: 500px;">
+                                <thead style="border-bottom: 1px solid var(--matrix-dark);">
+                                    <tr style="text-align:left"><th>ID</th><th>NOME ENTIDADE</th><th>SALDO</th><th>CHAVES (W/T)</th><th>CMDS</th></tr>
+                                </thead>
+                                <tbody id="accounts-list"></tbody>
+                            </table>
+                        </div>
+                        <div class="card" style="border-style: dashed;">
+                            <h3>INICIALIZAR NOVA ENTIDADE</h3>
+                            <input type="text" id="new-name" placeholder="NOME DA ENTIDADE">
+                            <div class="grid-2">
+                                <input type="text" id="new-pass-web" value="123" placeholder="SENHA WEB">
+                                <input type="text" id="new-pass-trans" value="1234" placeholder="SENHA TRANS">
+                            </div>
+                            <button class="btn" style="width: 100%;" onclick="AgenciaManager.createAccount()">EXECUTAR CRIAÇÃO</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. TERMINALS (PUBLIC) -->
+            <section id="view-atendimento" class="view-section">
+                <h2>>_ TERMINAIS DE ACESSO PÚBLICO</h2>
+                
+                <div class="lobby-container" id="lobby-select">
+                    <div class="machine human" onclick="AtendimentoManager.openTerminal('caixa')">
+                        <div class="screen"><i class="fas fa-user"></i></div>
+                        <div class="machine-label">HUMANO_01</div>
+                    </div>
+                    <div class="machine" onclick="AtendimentoManager.openTerminal('atmA')">
+                        <div class="screen">A</div>
+                        <div class="machine-label">NÓ_A</div>
+                    </div>
+                    <div class="machine" onclick="AtendimentoManager.openTerminal('atmB')">
+                        <div class="screen">B</div>
+                        <div class="machine-label">NÓ_B</div>
+                    </div>
+                    <div class="machine" onclick="AtendimentoManager.openTerminal('atmC')">
+                        <div class="screen">C</div>
+                        <div class="machine-label">NÓ_C</div>
+                    </div>
+                    <div class="machine" onclick="AtendimentoManager.openTerminal('atmD')">
+                        <div class="screen">D</div>
+                        <div class="machine-label">NÓ_D</div>
+                    </div>
+                </div>
+
+                <!-- INTERFACE OPERACIONAL -->
+                <div id="terminal-interface" style="display: none; max-width: 500px; margin: 0 auto;">
+                    <div class="card" style="border: 2px solid var(--matrix-green); box-shadow: 0 0 20px var(--matrix-green);">
+                        <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--matrix-green); margin-bottom: 20px;">
+                            <h3 id="term-title" style="margin:0;">TERMINAL_ATIVO</h3>
+                            <button class="btn btn-danger" style="padding: 2px 10px;" onclick="AtendimentoManager.closeTerminal()">X</button>
+                        </div>
+                        
+                        <p style="text-align: center; margin-bottom: 15px;">LINK SEGURO ESTABELECIDO...</p>
+                        
+                        <input type="number" id="op-conta" placeholder="ID CONTA">
+                        <input type="password" id="op-senha" placeholder="SENHA TRANS (****)">
+                        
+                        <div style="margin: 15px 0; border-top: 1px dashed #333; padding-top: 15px;">
+                            <label>TIPO DE OPERAÇÃO</label>
+                            <select id="op-type">
+                                <option value="saque">SAQUE</option>
+                                <option value="deposito">DEPÓSITO</option>
+                                <option value="transferencia">TRANSFERÊNCIA</option>
+                                <option value="pagamento">PAGAMENTO</option>
+                            </select>
+                        </div>
+
+                        <input type="number" id="op-valor" placeholder="VALOR">
+                        <input type="number" id="op-dest" placeholder="ID DESTINO" style="display:none">
+                        
+                        <button class="btn" style="width: 100%; margin-top: 10px;" onclick="AtendimentoManager.execute()">>> EXECUTAR</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. INTERNET BANKING -->
+            <section id="view-internetbanking" class="view-section">
+                <div id="ib-login-screen" style="max-width: 400px; margin: 50px auto; text-align: center;">
+                    <div class="card">
+                        <h2 style="border: none;">LOGIN NET_LINK</h2>
+                        <input type="number" id="ib-user" placeholder="ID USUÁRIO">
+                        <input type="password" id="ib-pass" placeholder="SENHA WEB">
+                        <button class="btn" style="width:100%" onclick="IBManager.login()">CONECTAR</button>
+                    </div>
+                </div>
+
+                <div id="ib-dashboard" style="display: none;">
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h3 style="margin:0; border:none;" id="ib-welcome">USUÁRIO: --</h3>
+                            <h1 style="margin:0; color: #fff;" id="ib-balance">0.00</h1>
+                        </div>
+                        <button onclick="IBManager.logout()" class="btn btn-danger">DESCONECTAR</button>
+                    </div>
+
+                    <div class="grid-4">
+                        <button class="btn" onclick="IBManager.showAction('extrato')">LOGS (EXT)</button>
+                        <button class="btn" onclick="IBManager.showAction('pix')">PIX/TRANSF</button>
+                        <button class="btn" onclick="IBManager.showAction('pagar')">PAGAR CONTA</button>
+                    </div>
+
+                    <div id="ib-action-area" style="margin-top: 20px;"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

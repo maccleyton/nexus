@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS CORE v3.0 - FULL SYSTEM</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="main.css" rel="stylesheet">
+</head>
+<body>
+    <canvas id="matrix-canvas"></canvas>
+
+    <div id="app">
+        <aside>
+            <div class="brand">NEXUS<br><span>ARCHITECT v3.0</span></div>
+            <nav>
+                <button onclick="Router.go('hub')">>_ HUB CENTRAL</button>
+                <button onclick="Router.go('agencia')">>_ MAINFRAME (ADM)</button>
+                <button onclick="Router.go('atendimento')">>_ AUTO-ATENDIMENTO</button>
+                <button onclick="Router.go('balcao')">>_ GUICHÊ / SERVIÇOS</button>
+                <button onclick="Router.go('internetbanking')">>_ NET_LINK (IB)</button>
+            </nav>
+            <div class="security-badge">
+                SYS_INTEGRITY: 100%<br>ENCRYPTION: AES-256
+            </div>
+        </aside>
+
+        <main>
+            <section id="view-hub" class="view-section active">
+                <h1>>_ SISTEMA INICIALIZADO</h1>
+                <div class="grid-2">
+                    <div class="card" onclick="Router.go('internetbanking')">
+                        <i class="fas fa-globe fa-2x"></i>
+                        <h2>INTERNET BANKING</h2>
+                        <p>Acesso Cliente / Investimentos</p>
+                    </div>
+                    <div class="card" onclick="Router.go('agencia')">
+                        <i class="fas fa-server fa-2x"></i>
+                        <h2>ADMINISTRAÇÃO</h2>
+                        <p>Gestão de Numerário / Cofres</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-agencia" class="view-section">
+                <div id="admin-login">
+                    <div class="login-box">
+                        <h3>AUTENTICAÇÃO MAINFRAME</h3>
+                        <input type="text" id="adm-user" placeholder="USUÁRIO (cosmos/nexus)">
+                        <input type="password" id="adm-pass" placeholder="SENHA">
+                        <button class="btn" onclick="Admin.login()">ACESSAR SISTEMA</button>
+                    </div>
+                </div>
+
+                <div id="admin-panel" style="display:none;">
+                    <div class="header-split">
+                        <h2>>_ GESTÃO DE NUMERÁRIO E COFRES</h2>
+                        <button class="btn btn-danger" onclick="Admin.logout()">LOGOUT</button>
+                    </div>
+
+                    <div class="tab-menu">
+                        <button class="tab-btn active" onclick="Tabs.open('distribuicao')">DISTRIBUIÇÃO (CARRO-FORTE)</button>
+                        <button class="tab-btn" onclick="Tabs.open('monitor')">MONITOR DE GAVETAS</button>
+                    </div>
+
+                    <div id="tab-distribuicao" class="tab-content">
+                        <div class="card">
+                            <h3>SOLICITAÇÃO DE NUMERÁRIO (CARRO-FORTE)</h3>
+                            <p>O sistema calculará a divisão automática: 50% Cofres/Guichê | 50% ATMs (31/31/19/19)</p>
+                            <div class="grid-2">
+                                <input type="number" id="cash-request-val" placeholder="VALOR TOTAL (ex: 1000000)">
+                                <button class="btn" onclick="CashManager.calculateDistribution()">CALCULAR DISTRIBUIÇÃO</button>
+                            </div>
+                        </div>
+
+                        <div id="dist-results" style="display:none;">
+                            <div class="grid-2">
+                                <div class="card">
+                                    <h3>GRUPO 1: COFRES + GUICHÊ</h3>
+                                    <ul id="res-group1" class="data-list"></ul>
+                                </div>
+                                <div class="card">
+                                    <h3>GRUPO 2: TERMINAIS (A-D)</h3>
+                                    <ul id="res-group2" class="data-list"></ul>
+                                </div>
+                            </div>
+                            <button class="btn btn-warn" onclick="CashManager.executeDistribution()">EXECUTAR ABASTECIMENTO FÍSICO</button>
+                        </div>
+                    </div>
+
+                    <div id="tab-monitor" class="tab-content" style="display:none;">
+                        <h3>STATUS DOS TERMINAIS (GAVETAS & CÉDULAS)</h3>
+                        <div id="atm-monitor-grid" class="grid-2"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-internetbanking" class="view-section">
+                <div id="ib-login">
+                    <div class="login-box">
+                        <h3>NET_LINK CLIENTE</h3>
+                        <input type="number" id="ib-user-id" placeholder="CONTA">
+                        <input type="password" id="ib-user-pass" placeholder="SENHA WEB">
+                        <button class="btn" onclick="IB.login()">CONECTAR</button>
+                    </div>
+                </div>
+
+                <div id="ib-panel" style="display:none;">
+                    <div class="card header-card">
+                        <div>
+                            <h3>OLÁ, <span id="ib-name">--</span></h3>
+                            <h1 id="ib-balance">R$ 0,00</h1>
+                        </div>
+                        <button class="btn btn-danger" onclick="IB.logout()">SAIR</button>
+                    </div>
+
+                    <div class="tab-menu">
+                        <button class="tab-btn active" onclick="IB.tab('extrato')">EXTRATO</button>
+                        <button class="tab-btn" onclick="IB.tab('pagar')">PAGAMENTOS</button>
+                        <button class="tab-btn" onclick="IB.tab('invest')">INVESTIMENTOS</button>
+                    </div>
+
+                    <div id="ib-tab-extrato" class="ib-tab">
+                        <table class="matrix-table">
+                            <thead><tr><th>DATA</th><th>TIPO</th><th>VALOR</th></tr></thead>
+                            <tbody id="extract-list"></tbody>
+                        </table>
+                    </div>
+
+                    <div id="ib-tab-pagar" class="ib-tab" style="display:none;">
+                        <div class="card">
+                            <h3>REALIZAR PAGAMENTO</h3>
+                            <select id="pay-type">
+                                <option value="AGUA">ÁGUA</option>
+                                <option value="LUZ">ENERGIA ELÉTRICA</option>
+                                <option value="INTERNET">INTERNET/TEL</option>
+                                <option value="BOLETO">BOLETO BANCÁRIO</option>
+                                <option value="TRIBUTO">TRIBUTOS (DARF/DAS)</option>
+                            </select>
+                            <input type="number" id="pay-val" placeholder="VALOR">
+                            <button class="btn" onclick="IB.pay()">CONFIRMAR PAGAMENTO</button>
+                        </div>
+                    </div>
+
+                    <div id="ib-tab-invest" class="ib-tab" style="display:none;">
+                        <div class="grid-3">
+                            <div class="card invest-card">
+                                <h4>RENDA FIXA (CDB/LCI)</h4>
+                                <small>Risco: Baixo | Retorno: Médio</small>
+                                <button class="btn btn-sm" onclick="Invest.simulate('CDB')">SIMULAR CDB</button>
+                                <button class="btn btn-sm" onclick="Invest.simulate('LCI')">SIMULAR LCI</button>
+                            </div>
+                            <div class="card invest-card">
+                                <h4>RENDA VARIÁVEL</h4>
+                                <small>Risco: Alto | Retorno: Volátil</small>
+                                <button class="btn btn-sm" onclick="Invest.simulate('ACOES')">COMPRAR AÇÕES</button>
+                                <button class="btn btn-sm" onclick="Invest.simulate('FII')">FIIs</button>
+                            </div>
+                            <div class="card invest-card">
+                                <h4>TESOURO & POUPANÇA</h4>
+                                <small>Segurança Máxima</small>
+                                <button class="btn btn-sm" onclick="Invest.simulate('TESOURO')">TESOURO DIRETO</button>
+                                <button class="btn btn-sm" onclick="Invest.simulate('POUPANCA')">POUPANÇA</button>
+                            </div>
+                        </div>
+
+                        <div id="invest-sim-area" class="card" style="margin-top:20px; border: 1px dashed var(--color-primary); display:none;">
+                            <h3 id="sim-title">SIMULADOR</h3>
+                            <p id="sim-desc"></p>
+                            <div class="grid-2">
+                                <div>
+                                    <label>Valor Aplicação:</label>
+                                    <input type="number" id="sim-val">
+                                </div>
+                                <div>
+                                    <label>Projeção (Meses):</label>
+                                    <input type="number" id="sim-months" value="12">
+                                </div>
+                            </div>
+                            <div id="sim-result" style="margin: 10px 0; color: #fff;"></div>
+                            <button class="btn" onclick="Invest.apply()">EFETIVAR APLICAÇÃO</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-balcao" class="view-section">
+                <h2>>_ BALCÃO DE SERVIÇOS</h2>
+                <div class="grid-2">
+                    <div class="card">
+                        <h3>ABERTURA DE CONTA</h3>
+                        <input type="text" id="new-name" placeholder="NOME COMPLETO">
+                        <input type="text" id="new-doc" placeholder="CPF/CNPJ">
+                        <button class="btn" onclick="Services.openAccount()">CRIAR REGISTRO</button>
+                    </div>
+                    <div class="card">
+                        <h3>MANUTENÇÃO</h3>
+                        <input type="number" placeholder="ID CONTA">
+                        <button class="btn btn-warn">RESETAR SENHA</button>
+                        <button class="btn btn-danger">ENCERRAR CONTA</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-atendimento" class="view-section">
+                <div class="card" style="text-align:center; padding: 50px;">
+                    <h2>TERMINAIS FÍSICOS</h2>
+                    <p>Selecione um terminal para operar. O sistema validará a disponibilidade de cédulas nas gavetas.</p>
+                    <div class="grid-4">
+                        <button class="btn" onclick="ATM.start('A')">TERMINAL A</button>
+                        <button class="btn" onclick="ATM.start('B')">TERMINAL B</button>
+                        <button class="btn" onclick="ATM.start('C')">TERMINAL C</button>
+                        <button class="btn" onclick="ATM.start('D')">TERMINAL D</button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+    <script src="main.js"></script>
+</body>
+</html>

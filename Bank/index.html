@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BANCO NEXUS - Acesso Mainframe</title>
+    <!-- Ícones e Fonte Matrix-like -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --matrix-green: #00ff41;
+            --matrix-dark: #003b00;
+            --black: #000000;
+            --alert: #ff0000;
+            --warn: #ffff00;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Share Tech Mono', monospace; }
+        
+        body { 
+            background-color: var(--black); 
+            color: var(--matrix-green); 
+            height: 100vh; 
+            overflow: hidden; 
+            position: relative;
+        }
+
+        /* --- MATRIX RAIN CANVAS --- */
+        #matrix-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; opacity: 0.15; pointer-events: none;
+        }
+
+        /* --- LAYOUT --- */
+        #app { display: flex; height: 100%; position: relative; z-index: 1; }
+        
+        aside { 
+            width: 280px; 
+            background: rgba(0, 10, 0, 0.9); 
+            border-right: 1px solid var(--matrix-green); 
+            display: flex; flex-direction: column; 
+            box-shadow: 5px 0 15px rgba(0, 255, 65, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .brand { 
+            padding: 30px; 
+            font-size: 2rem; 
+            color: var(--matrix-green); 
+            text-align: center;
+            border-bottom: 2px dashed var(--matrix-dark);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            animation: flicker 3s infinite;
+        }
+        
+        nav button {
+            width: 100%; text-align: left; padding: 20px; background: transparent; border: none;
+            color: #008f11; cursor: pointer; transition: 0.2s; font-size: 1.1rem; 
+            border-bottom: 1px solid #002200;
+            text-transform: uppercase;
+        }
+        nav button:hover, nav button.active { 
+            background: var(--matrix-green); 
+            color: var(--black); 
+            font-weight: bold;
+            box-shadow: 0 0 10px var(--matrix-green);
+        }
+        
+        main { flex: 1; padding: 30px; overflow-y: auto; position: relative; }
+
+        /* --- UI COMPONENTS --- */
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: scanline 0.5s ease-out; }
+
+        .card { 
+            background: rgba(0, 20, 0, 0.85); 
+            border: 1px solid var(--matrix-green); 
+            padding: 20px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 0 5px rgba(0, 255, 65, 0.2);
+            position: relative;
+        }
+        /* Cantos cortados estilo Cyberpunk */
+        .card::before {
+            content: ''; position: absolute; top: -1px; left: -1px; 
+            border-top: 10px solid var(--matrix-green); border-right: 10px solid transparent; width: 0;
+        }
+
+        h1, h2, h3 { text-transform: uppercase; margin-bottom: 15px; color: var(--matrix-green); text-shadow: 0 0 5px var(--matrix-dark); }
+        
+        /* Inputs Matrix */
+        input, select { 
+            width: 100%; padding: 12px; background: #000; 
+            border: 1px solid var(--matrix-dark); color: var(--matrix-green); 
+            font-family: 'Share Tech Mono'; font-size: 1rem; margin-bottom: 10px;
+        }
+        input:focus { outline: none; border-color: var(--matrix-green); box-shadow: 0 0 8px var(--matrix-green); }
+
+        /* Botões Matrix */
+        .btn { 
+            padding: 12px 25px; border: 1px solid var(--matrix-green); background: #000; 
+            color: var(--matrix-green); cursor: pointer; font-weight: bold; 
+            text-transform: uppercase; transition: 0.2s; letter-spacing: 1px;
+        }
+        .btn:hover { background: var(--matrix-green); color: #000; box-shadow: 0 0 15px var(--matrix-green); }
+        
+        .btn-danger { border-color: var(--alert); color: var(--alert); }
+        .btn-danger:hover { background: var(--alert); color: #000; box-shadow: 0 0 15px var(--alert); }
+        
+        .btn-warn { border-color: var(--warn); color: var(--warn); }
+        .btn-warn:hover { background: var(--warn); color: #000; }
+
+        /* Grids */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+
+        /* --- TERMINALS VISUAL --- */
+        .lobby-container { display: flex; justify-content: center; gap: 40px; padding: 40px 0; flex-wrap: wrap; }
+        .machine { 
+            width: 140px; height: 200px; border: 2px solid var(--matrix-dark); 
+            position: relative; cursor: pointer; transition: 0.3s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, #001100 3px);
+        }
+        .machine:hover { border-color: var(--matrix-green); box-shadow: 0 0 20px var(--matrix-green); transform: scale(1.05); }
+        .machine .screen { 
+            font-size: 2rem; color: var(--matrix-green); margin-bottom: 10px;
+            text-shadow: 0 0 5px var(--matrix-green);
+        }
+        .machine-label { margin-top: 10px; font-weight: bold; background: var(--matrix-green); color: black; padding: 2px 5px; }
+        
+        .machine.human { border-color: var(--matrix-green); }
+
+        /* --- GAVETAS --- */
+        .drawer-row { 
+            display: grid; grid-template-columns: 0.5fr 1fr 1fr 1fr; gap: 10px; 
+            align-items: center; margin-bottom: 5px; border-bottom: 1px dashed var(--matrix-dark); padding: 5px; 
+        }
+        .capacity-bar { height: 6px; background: #111; border: 1px solid #333; width: 100%; }
+        .cap-fill { height: 100%; background: var(--matrix-green); }
+
+        /* --- LOGIN SCREEN --- */
+        #lock-screen {
+            position: absolute; top:0; left:0; width:100%; height:100%; background: #000; z-index: 10;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .login-box { 
+            width: 350px; padding: 40px; border: 2px solid var(--matrix-green); 
+            box-shadow: inset 0 0 30px rgba(0, 255, 65, 0.2); 
+            text-align: center;
+        }
+
+        /* --- ANIMATIONS --- */
+        @keyframes flicker { 0% { opacity: 1; } 50% { opacity: 0.8; } 52% { opacity: 1; } 54% { opacity: 0; } 56% { opacity: 1; } 100% { opacity: 1; } }
+        @keyframes scanline { 0% { transform: scaleY(0); opacity: 0; } 100% { transform: scaleY(1); opacity: 1; } }
+
+        /* Tabs */
+        .tab-menu { display: flex; border-bottom: 1px solid var(--matrix-dark); margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 10px; cursor: pointer; border-right: 1px solid var(--matrix-dark); text-align: center; color: #005500; }
+        .tab-btn:hover, .tab-btn.active { background: var(--matrix-green); color: #000; font-weight: bold; }
+
+        /* --- RESPONSIVIDADE (MOBILE) --- */
+        @media (max-width: 768px) {
+            #app { flex-direction: column; overflow-y: auto; }
+            aside { 
+                width: 100%; height: auto; border-right: none; 
+                border-bottom: 1px solid var(--matrix-green); 
+                flex-shrink: 0;
+            }
+            .brand { padding: 15px; font-size: 1.5rem; }
+            nav { display: flex; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+            nav button { width: auto; padding: 15px; font-size: 0.9rem; border-bottom: none; border-right: 1px solid #002200; }
+            
+            main { padding: 15px; flex: 1; overflow-y: auto; }
+            
+            .grid-2, .grid-4 { grid-template-columns: 1fr; }
+            
+            .lobby-container { gap: 15px; }
+            .machine { width: 45%; max-width: 140px; height: 180px; }
+            
+            .tab-menu { flex-wrap: wrap; }
+            .tab-btn { flex: 1 0 50%; border-bottom: 1px solid var(--matrix-dark); }
+            
+            .drawer-row { grid-template-columns: 0.5fr 1fr 1fr; gap: 5px; }
+            .drawer-row .capacity-bar { display: none; } /* Esconde barra em telas mto pequenas para economizar espaço */
+            
+            .login-box { width: 90%; max-width: 350px; padding: 20px; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- MATRIX RAIN EFFECT -->
+    <canvas id="matrix-canvas"></canvas>
+
+    <div id="app">
+        <aside>
+            <div class="brand">NEXUS<br><span style="font-size:1rem;">SYSTEMS</span></div>
+            <nav>
+                <button onclick="Router.go('hub')" class="active">>_ HUB PRINCIPAL</button>
+                <button onclick="Router.go('agencia')">>_ MAINFRAME (ADMIN)</button>
+                <button onclick="Router.go('atendimento')">>_ TERMINAIS (PÚBLICO)</button>
+                <button onclick="Router.go('internetbanking')">>_ NET_LINK (CLIENTE)</button>
+            </nav>
+            <div style="margin-top:auto; padding: 20px; color: #004400; font-size: 0.8rem; text-align: center; display: none;">
+                CONEXÃO SEGURA<br>ENCRIPTADO V.4.3
+            </div>
+        </aside>
+
+        <main>
+            <!-- 0. HUB -->
+            <section id="view-hub" class="view-section active">
+                <h1>>_ SISTEMA PRONTO</h1>
+                <p>Bem-vindo à Grade Nexus. Selecione um subsistema para interagir.</p>
+                <div class="grid-2" style="margin-top: 50px;">
+                    <div class="card" onclick="Router.go('internetbanking')" style="cursor: pointer; text-align: center; padding: 40px;">
+                        <i class="fas fa-network-wired fa-3x"></i>
+                        <h2 style="margin-top:20px;">NET_LINK</h2>
+                        <p>Protocolo de Acesso Cliente</p>
+                    </div>
+                    <div class="card" onclick="Router.go('atendimento')" style="cursor: pointer; text-align: center; padding: 40px;">
+                        <i class="fas fa-server fa-3x"></i>
+                        <h2 style="margin-top:20px;">NÓ FÍSICO</h2>
+                        <p>Interface de Caixa e ATM</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 1. AGÊNCIA (ADMIN) -->
+            <section id="view-agencia" class="view-section" style="position: relative; height: 100%;">
+                
+                <!-- LOCK SCREEN -->
+                <div id="lock-screen">
+                    <div class="login-box">
+                        <i class="fas fa-fingerprint fa-4x" style="color: var(--matrix-green); margin-bottom: 20px;"></i>
+                        <h3>ACESSO MAINFRAME</h3>
+                        <input type="text" id="admin-user" placeholder="ID USUÁRIO">
+                        <input type="password" id="admin-pass" placeholder="CÓDIGO ACESSO">
+                        <button class="btn" style="width: 100%;" onclick="AdminAuth.login()">DESCRIPTOGRAFAR</button>
+                        <p id="admin-error" style="color: var(--alert); margin-top: 10px;"></p>
+                    </div>
+                </div>
+
+                <!-- ADMIN CONTENT -->
+                <div id="admin-content" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--matrix-green); padding-bottom: 10px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                        <h2>>_ CONTROLE NÚCLEO</h2>
+                        <button class="btn btn-danger" onclick="AdminAuth.logout()">BLOQUEAR SESSÃO</button>
+                    </div>
+
+                    <div class="tab-menu">
+                        <div class="tab-btn active" onclick="Tabs.show('resumo')">MONITOR</div>
+                        <div class="tab-btn" onclick="Tabs.show('atms')">NÓS (ATMs)</div>
+                        <div class="tab-btn" onclick="Tabs.show('caixa')">NÓ HUMANO</div>
+                        <div class="tab-btn" onclick="Tabs.show('contas')">ENTIDADES</div>
+                    </div>
+
+                    <!-- RESUMO -->
+                    <div id="tab-resumo">
+                        <div class="card">
+                            <div class="grid-4" style="text-align: center;">
+                                <div><small>TOTAL GRADE</small><h2 id="adm-total">--</h2></div>
+                                <div><small>COFRE (NÚCLEO)</small><h3 id="adm-cofre" style="color: var(--warn)">--</h3></div>
+                                <div><small>TERMINAIS</small><h3 id="adm-atms">--</h3></div>
+                                <div><small>CAIXA</small><h3 id="adm-caixa-val">--</h3></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ATMs -->
+                    <div id="tab-atms" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
+                            <h3>CONFIGURAÇÃO DE NÓ</h3>
+                            <button class="btn" onclick="AgenciaManager.calculateDynamic()">[EXEC] DISTRIB_DINAMICA.EXE</button>
+                        </div>
+                        <div id="terminals-grid"></div>
+                    </div>
+
+                    <!-- CAIXA -->
+                    <div id="tab-caixa" style="display: none;">
+                        <div class="card">
+                            <h3>CONTROLE DE NÓ HUMANO</h3>
+                            <div class="grid-2">
+                                <div style="text-align: center; padding: 20px; border: 1px dashed var(--matrix-green);">
+                                    <h1 id="human-cash-balance" style="font-size: 3rem;">0</h1>
+                                    <p>CACHE FÍSICO</p>
+                                </div>
+                                <div>
+                                    <input type="number" id="human-op-val" placeholder="QUANTIA">
+                                    <div class="grid-2">
+                                        <button class="btn" onclick="AgenciaManager.humanRefill()">ABASTECER (COFRE->)</button>
+                                        <button class="btn btn-warn" onclick="AgenciaManager.humanRelieve()">ALIVIAR (->COFRE)</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CONTAS -->
+                    <div id="tab-contas" style="display: none;">
+                        <div class="card" style="overflow-x: auto;">
+                            <h3>ENTIDADES ATIVAS</h3>
+                            <table style="width: 100%; border-collapse: collapse; min-width: 500px;">
+                                <thead style="border-bottom: 1px solid var(--matrix-dark);">
+                                    <tr style="text-align:left"><th>ID</th><th>NOME ENTIDADE</th><th>SALDO</th><th>CHAVES (W/T)</th><th>CMDS</th></tr>
+                                </thead>
+                                <tbody id="accounts-list"></tbody>
+                            </table>
+                        </div>
+                        <div class="card" style="border-style: dashed;">
+                            <h3>INICIALIZAR NOVA ENTIDADE</h3>
+                            <input type="text" id="new-name" placeholder="NOME DA ENTIDADE">
+                            <div class="grid-2">
+                                <input type="text" id="new-pass-web" value="123" placeholder="SENHA WEB">
+                                <input type="text" id="new-pass-trans" value="1234" placeholder="SENHA TRANS">
+                            </div>
+                            <button class="btn" style="width: 100%;" onclick="AgenciaManager.createAccount()">EXECUTAR CRIAÇÃO</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 2. TERMINALS (PUBLIC) -->
+            <section id="view-atendimento" class="view-section">
+                <h2>>_ TERMINAIS DE ACESSO PÚBLICO</h2>
+                
+                <div class="lobby-container" id="lobby-select">
+                    <div class="machine human" onclick="AtendimentoManager.openTerminal('caixa')">
+                        <div class="screen"><i class="fas fa-user"></i></div>
+                        <div class="machine-label">HUMANO_01</div>
+                    </div>
+                    <div class="machine" onclick="AtendimentoManager.openTerminal('atmA')">
+                        <div class="screen">A</div>
+                        <div class="machine-label">NÓ_A</div>
+                    </div>
+                    <div class="machine" onclick="AtendimentoManager.openTerminal('atmB')">
+                        <div class="screen">B</div>
+                        <div class="machine-label">NÓ_B</div>
+                    </div>
+                    <div class="machine" onclick="AtendimentoManager.openTerminal('atmC')">
+                        <div class="screen">C</div>
+                        <div class="machine-label">NÓ_C</div>
+                    </div>
+                    <div class="machine" onclick="AtendimentoManager.openTerminal('atmD')">
+                        <div class="screen">D</div>
+                        <div class="machine-label">NÓ_D</div>
+                    </div>
+                </div>
+
+                <!-- INTERFACE OPERACIONAL -->
+                <div id="terminal-interface" style="display: none; max-width: 500px; margin: 0 auto;">
+                    <div class="card" style="border: 2px solid var(--matrix-green); box-shadow: 0 0 20px var(--matrix-green);">
+                        <div style="display: flex; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--matrix-green); margin-bottom: 20px;">
+                            <h3 id="term-title" style="margin:0;">TERMINAL_ATIVO</h3>
+                            <button class="btn btn-danger" style="padding: 2px 10px;" onclick="AtendimentoManager.closeTerminal()">X</button>
+                        </div>
+                        
+                        <p style="text-align: center; margin-bottom: 15px;">LINK SEGURO ESTABELECIDO...</p>
+                        
+                        <input type="number" id="op-conta" placeholder="ID CONTA">
+                        <input type="password" id="op-senha" placeholder="SENHA TRANS (****)">
+                        
+                        <div style="margin: 15px 0; border-top: 1px dashed #333; padding-top: 15px;">
+                            <label>TIPO DE OPERAÇÃO</label>
+                            <select id="op-type">
+                                <option value="saque">SAQUE</option>
+                                <option value="deposito">DEPÓSITO</option>
+                                <option value="transferencia">TRANSFERÊNCIA</option>
+                                <option value="pagamento">PAGAMENTO</option>
+                            </select>
+                        </div>
+
+                        <input type="number" id="op-valor" placeholder="VALOR">
+                        <input type="number" id="op-dest" placeholder="ID DESTINO" style="display:none">
+                        
+                        <button class="btn" style="width: 100%; margin-top: 10px;" onclick="AtendimentoManager.execute()">>> EXECUTAR</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. INTERNET BANKING -->
+            <section id="view-internetbanking" class="view-section">
+                <div id="ib-login-screen" style="max-width: 400px; margin: 50px auto; text-align: center;">
+                    <div class="card">
+                        <h2 style="border: none;">LOGIN NET_LINK</h2>
+                        <input type="number" id="ib-user" placeholder="ID USUÁRIO">
+                        <input type="password" id="ib-pass" placeholder="SENHA WEB">
+                        <button class="btn" style="width:100%" onclick="IBManager.login()">CONECTAR</button>
+                    </div>
+                </div>
+
+                <div id="ib-dashboard" style="display: none;">
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <h3 style="margin:0; border:none;" id="ib-welcome">USUÁRIO: --</h3>
+                            <h1 style="margin:0; color: #fff;" id="ib-balance">0.00</h1>
+                        </div>
+                        <button onclick="IBManager.logout()" class="btn btn-danger">DESCONECTAR</button>
+                    </div>
+
+                    <div class="grid-4">
+                        <button class="btn" onclick="IBManager.showAction('extrato')">LOGS (EXT)</button>
+                        <button class="btn" onclick="IBManager.showAction('pix')">PIX/TRANSF</button>
+                        <button class="btn" onclick="IBManager.showAction('pagar')">PAGAR CONTA</button>
+                    </div>
+
+                    <div id="ib-action-area" style="margin-top: 20px;"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- MATRIX RAIN EFFECT ---
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$@#%';
+        const fontSize = 16;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#0F0';
+            ctx.font = fontSize + 'px monospace';
+            for (let i = 0; i < drops.length; i++) {
+                const text = letters.charAt(Math.floor(Math.random() * letters.length));
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 33);
+        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; });
+
+        // --- AUTH ---
+        const AdminAuth = {
+            login() {
+                const u = document.getElementById('admin-user').value;
+                const p = document.getElementById('admin-pass').value;
+                // Usuário 'nexus' ou 'cosmos'
+                if((u === 'nexus' || u === 'cosmos') && p === '0099') {
+                    document.getElementById('lock-screen').style.display = 'none';
+                    document.getElementById('admin-content').style.display = 'block';
+                    AgenciaManager.init();
+                } else {
+                    document.getElementById('admin-error').innerText = "ACESSO NEGADO";
+                }
+            },
+            logout() {
+                document.getElementById('lock-screen').style.display = 'flex';
+                document.getElementById('admin-content').style.display = 'none';
+                document.getElementById('admin-pass').value = '';
+            }
+        };
+
+        // --- DB CORE ---
+        const DB = {
+            key: 'nexus_db_v1',
+            data: null,
+            init() {
+                const s = localStorage.getItem(this.key);
+                this.data = s ? JSON.parse(s) : this.seed();
+            },
+            save() { localStorage.setItem(this.key, JSON.stringify(this.data)); },
+            seed() {
+                return {
+                    config: { totalSystemCash: 3500000 },
+                    treasury: { vault: 2000000 },
+                    humanCashier: 0,
+                    atms: {
+                        atmA: this.createAtm(3000), atmB: this.createAtm(3000),
+                        atmC: this.createAtm(1800), atmD: this.createAtm(1800)
+                    },
+                    accounts: [
+                        {id:1, name:"Neo", balance:1000000, pw:"123", pt:"1234", hist:[], active:true},
+                        {id:2, name:"Trinity", balance:1000000, pw:"123", pt:"1234", hist:[], active:true},
+                        {id:3, name:"Morpheus", balance:1000000, pw:"123", pt:"1234", hist:[], active:true},
+                        {id:4, name:"Smith", balance:1000000, pw:"123", pt:"1234", hist:[], active:true}
+                    ]
+                };
+            },
+            createAtm(cap) {
+                return { drawers: [{face:100, count:cap, max:cap}, {face:50, count:cap, max:cap}, {face:20, count:cap, max:cap}, {face:10, count:cap, max:cap}] }
+            }
+        };
+
+        // --- UI MANAGERS ---
+        const Tabs = {
+            show(id) {
+                document.querySelectorAll('[id^="tab-"]').forEach(e => e.style.display = 'none');
+                document.getElementById('tab-'+id).style.display = 'block';
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                event.target.classList.add('active');
+            }
+        };
+
+        const AgenciaManager = {
+            init() { this.updateSummary(); this.renderATMs(); this.renderAccounts(); },
+            getAtmTotal(atm) { return atm.drawers.reduce((acc, d) => acc + (d.face * d.count), 0); },
+            
+            updateSummary() {
+                const d = DB.data;
+                let atmTotal = 0;
+                Object.values(d.atms).forEach(a => atmTotal += this.getAtmTotal(a));
+                const totalSys = d.treasury.vault + d.humanCashier + atmTotal;
+                
+                document.getElementById('adm-total').innerText = totalSys.toLocaleString('pt-BR');
+                document.getElementById('adm-cofre').innerText = d.treasury.vault.toLocaleString('pt-BR');
+                document.getElementById('adm-atms').innerText = atmTotal.toLocaleString('pt-BR');
+                document.getElementById('adm-caixa-val').innerText = d.humanCashier.toLocaleString('pt-BR');
+                document.getElementById('human-cash-balance').innerText = d.humanCashier.toLocaleString('pt-BR');
+            },
+
+            humanRefill() {
+                const val = parseFloat(document.getElementById('human-op-val').value);
+                if(!val || val <= 0) return alert("VALOR INVÁLIDO");
+                if(DB.data.treasury.vault < val) return alert("COFRE VAZIO");
+                DB.data.treasury.vault -= val; DB.data.humanCashier += val;
+                DB.save(); this.init(); alert("ABASTECIMENTO COMPLETO");
+            },
+            humanRelieve() {
+                const val = parseFloat(document.getElementById('human-op-val').value);
+                if(!val || val <= 0) return alert("VALOR INVÁLIDO");
+                if(DB.data.humanCashier < val) return alert("FUNDOS INSUFICIENTES");
+                DB.data.humanCashier -= val; DB.data.treasury.vault += val;
+                DB.save(); this.init(); alert("ALÍVIO COMPLETO");
+            },
+
+            renderATMs() {
+                const grid = document.getElementById('terminals-grid');
+                grid.innerHTML = '';
+                Object.keys(DB.data.atms).forEach(id => {
+                    const atm = DB.data.atms[id];
+                    let html = `<div class="card">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #005500;">
+                            <strong>NÓ_${id.replace('atm','')}</strong>
+                            <span>TOTAL: ${this.getAtmTotal(atm).toLocaleString('pt-BR')}</span>
+                        </div>`;
+                    atm.drawers.forEach((d, idx) => {
+                        const pct = (d.count / d.max) * 100;
+                        html += `<div class="drawer-row">
+                            <input type="number" style="margin:0; width:60px" value="${d.face}" onchange="AgenciaManager.setFace('${id}',${idx},this.value)">
+                            <small>${d.count}/${d.max}</small>
+                            <input type="number" id="in-${id}-${idx}" placeholder="QTD" style="margin:0; width:60px;">
+                            <div class="capacity-bar"><div class="cap-fill" style="width:${pct}%"></div></div>
+                        </div>`;
+                    });
+                    html += `<div class="grid-2" style="margin-top:10px;">
+                        <button class="btn" onclick="AgenciaManager.atmOp('${id}', 'add')">ABASTECER</button>
+                        <button class="btn btn-warn" onclick="AgenciaManager.atmOp('${id}', 'sub')">ALIVIAR</button>
+                    </div></div>`;
+                    grid.innerHTML += html;
+                });
+            },
+
+            setFace(id, idx, val) { DB.data.atms[id].drawers[idx].face = parseFloat(val); DB.save(); this.init(); },
+
+            calculateDynamic() {
+                Object.keys(DB.data.atms).forEach(id => {
+                    DB.data.atms[id].drawers.forEach((d, idx) => {
+                        const target = Math.floor(d.max * 0.8);
+                        const diff = target - d.count;
+                        if(diff > 0) document.getElementById(`in-${id}-${idx}`).value = diff;
+                    });
+                });
+                alert("DISTRIBUIÇÃO CALCULADA. PRONTO PARA EXECUTAR.");
+            },
+
+            atmOp(id, mode) {
+                const atm = DB.data.atms[id];
+                let cost = 0; let err = null;
+                atm.drawers.forEach((d, idx) => {
+                    const qty = parseInt(document.getElementById(`in-${id}-${idx}`).value) || 0;
+                    if(qty > 0) {
+                        if(mode === 'add') {
+                            if(d.count + qty > d.max) err = "ESTOURO DE CAPACIDADE";
+                            cost += (qty * d.face);
+                        } else if(d.count - qty < 0) err = "FALTA DE SALDO";
+                    }
+                });
+                if(err) return alert(err);
+                if(mode === 'add' && DB.data.treasury.vault < cost) return alert("COFRE VAZIO");
+
+                atm.drawers.forEach((d, idx) => {
+                    const qty = parseInt(document.getElementById(`in-${id}-${idx}`).value) || 0;
+                    if(qty > 0) {
+                        const val = qty * d.face;
+                        if(mode === 'add') { d.count += qty; DB.data.treasury.vault -= val; }
+                        else { d.count -= qty; DB.data.treasury.vault += val; }
+                        document.getElementById(`in-${id}-${idx}`).value = '';
+                    }
+                });
+                DB.save(); this.init(); alert("CMD EXECUTADO");
+            },
+
+            renderAccounts() {
+                const list = document.getElementById('accounts-list');
+                list.innerHTML = DB.data.accounts.map(a => {
+                    if(a.active === false) return '';
+                    return `<tr style="border-bottom:1px solid #111;">
+                        <td>${a.id}</td><td>${a.name}</td>
+                        <td style="color:var(--matrix-green)">${a.balance.toLocaleString('pt-BR')}</td>
+                        <td>${a.pw}/${a.pt}</td>
+                        <td>
+                            <button class="btn-danger" style="padding:2px 5px; font-size:0.7rem;" onclick="AgenciaManager.closeAccount(${a.id})">FIM</button>
+                            <button class="btn-warn" style="padding:2px 5px; font-size:0.7rem;" onclick="AgenciaManager.resetPass(${a.id})">RST</button>
+                        </td>
+                    </tr>`;
+                }).join('');
+            },
+
+            createAccount() {
+                const name = document.getElementById('new-name').value;
+                const pw = document.getElementById('new-pass-web').value;
+                const pt = document.getElementById('new-pass-trans').value;
+                if(!name || !pw || !pt) return alert("DADOS FALTANDO");
+                const newId = DB.data.accounts.length + 1;
+                DB.data.accounts.push({id: newId, name: name, balance: 0, pw: pw, pt: pt, hist: [], active: true});
+                DB.save(); this.renderAccounts(); document.getElementById('new-name').value=''; alert("ENTIDADE CRIADA");
+            },
+            closeAccount(id) {
+                const acc = DB.data.accounts.find(a => a.id == id);
+                if(acc.balance !== 0) return alert("SALDO NÃO É ZERO");
+                if(confirm("ENCERRAR ENTIDADE?")) { acc.active = false; DB.save(); this.renderAccounts(); }
+            },
+            resetPass(id) {
+                const acc = DB.data.accounts.find(a => a.id == id);
+                if(confirm("RESETAR CHAVES?")) { acc.pw = "123"; acc.pt = "1234"; DB.save(); this.renderAccounts(); alert("CHAVES RESETADAS"); }
+            }
+        };
+
+        const AtendimentoManager = {
+            curr: null,
+            openTerminal(id) {
+                this.curr = id;
+                document.getElementById('lobby-select').style.display = 'none';
+                document.getElementById('terminal-interface').style.display = 'block';
+                document.getElementById('term-title').innerText = id === 'caixa' ? "INTERFACE_HUMANA" : `NÓ_${id.replace('atm','').toUpperCase()}`;
+                const dest = document.getElementById('op-dest');
+                const type = document.getElementById('op-type');
+                type.onchange = () => { dest.style.display = (type.value === 'transferencia') ? 'block' : 'none'; };
+            },
+            closeTerminal() {
+                document.getElementById('lobby-select').style.display = 'flex';
+                document.getElementById('terminal-interface').style.display = 'none';
+            },
+            execute() {
+                const id = document.getElementById('op-conta').value;
+                const pt = document.getElementById('op-senha').value;
+                const type = document.getElementById('op-type').value;
+                const val = parseFloat(document.getElementById('op-valor').value);
+                const destId = document.getElementById('op-dest').value;
+
+                if(!val || val <= 0) return alert("VALOR INVÁLIDO");
+                if(this.curr !== 'caixa' && !Number.isInteger(val)) return alert("APENAS VALORES INTEIROS EM NÓS");
+
+                const acc = DB.data.accounts.find(a => a.id == id && a.pt == pt);
+                if(!acc || acc.active === false) return alert("FALHA NA AUTENTICAÇÃO");
+
+                if(type === 'saque') {
+                    if(acc.balance < val) return alert("FUNDOS INSUFICIENTES");
+                    if(this.curr === 'caixa') {
+                        if(DB.data.humanCashier < val) return alert("CACHE FÍSICO VAZIO");
+                        DB.data.humanCashier -= val;
+                    } else {
+                        const atm = DB.data.atms[this.curr];
+                        if(AgenciaManager.getAtmTotal(atm) < val) return alert("NÓ VAZIO");
+                        let rem = val;
+                        const drawers = [...atm.drawers].sort((a,b)=>b.face-a.face);
+                        for(let d of drawers) {
+                            if(rem<=0) break;
+                            let take = Math.min(Math.floor(rem/d.face), d.count);
+                            d.count -= take; rem -= (take*d.face);
+                        }
+                        if(rem > 0) { DB.init(); return alert("ERRO DE DENOMINAÇÃO"); }
+                    }
+                    acc.balance -= val; acc.hist.push({desc:`SAQUE ${this.curr}`, v:-val, d:new Date().toLocaleDateString('pt-BR')});
+                
+                } else if(type === 'deposito') {
+                    acc.balance += val;
+                    if(this.curr === 'caixa') DB.data.humanCashier += val;
+                    else { const atm = DB.data.atms[this.curr]; atm.drawers[0].count += Math.floor(val/100); }
+                    acc.hist.push({desc:`DEPÓSITO ${this.curr}`, v:val, d:new Date().toLocaleDateString('pt-BR')});
+                
+                } else if(type === 'transferencia') {
+                     const dest = DB.data.accounts.find(a => a.id == destId);
+                     if(!dest || dest.active === false) return alert("DESTINO DESCONHECIDO");
+                     if(acc.balance < val) return alert("FUNDOS INSUFICIENTES");
+                     acc.balance -= val; dest.balance += val;
+                     acc.hist.push({desc:`TRANSF > ${destId}`, v:-val, d:new Date().toLocaleDateString('pt-BR')});
+                     dest.hist.push({desc:`TRANSF < ${acc.id}`, v:val, d:new Date().toLocaleDateString('pt-BR')});
+                } else if(type === 'pagamento') {
+                     if(acc.balance < val) return alert("FUNDOS INSUFICIENTES");
+                     acc.balance -= val; acc.hist.push({desc:`PAGAMENTO`, v:-val, d:new Date().toLocaleDateString('pt-BR')});
+                }
+                DB.save(); alert("SUCESSO"); document.getElementById('op-valor').value = '';
+            }
+        };
+
+        const IBManager = {
+            user: null,
+            login() {
+                const u = document.getElementById('ib-user').value;
+                const p = document.getElementById('ib-pass').value;
+                const acc = DB.data.accounts.find(a => a.id == u && a.pw == p);
+                if(acc && acc.active !== false) {
+                    this.user = acc; document.getElementById('ib-login-screen').style.display='none';
+                    document.getElementById('ib-dashboard').style.display='block'; this.updateDash();
+                } else alert("FALHA NA AUTENTICAÇÃO");
+            },
+            logout() { location.reload(); },
+            updateDash() {
+                const acc = DB.data.accounts.find(a => a.id == this.user.id);
+                document.getElementById('ib-welcome').innerText = `USUÁRIO: ${acc.name}`;
+                document.getElementById('ib-balance').innerText = acc.balance.toLocaleString('pt-BR');
+            },
+            showAction(act) {
+                const area = document.getElementById('ib-action-area'); area.innerHTML = '';
+                if(act === 'extrato') {
+                    let html = `<div class="card"><h3>LOGS</h3><ul style="list-style:none">`;
+                    this.user.hist.reverse().forEach(h => {
+                        html += `<li style="border-bottom:1px solid #111; padding:5px; display:flex; justify-content:space-between">
+                            <span>${h.d} - ${h.desc}</span><span style="color:${h.v<0?'var(--alert)':'var(--matrix-green)'}">${h.v.toFixed(2)}</span></li>`;
+                    });
+                    area.innerHTML = html + '</ul></div>';
+                } else if(act === 'pix') {
+                    area.innerHTML = `<div class="card"><h3>TRANSFERÊNCIA PIX</h3><input id="pix-dest" placeholder="ID DEST"><input id="pix-val" type="number" placeholder="VAL"><button class="btn" onclick="IBManager.execPix()">ENVIAR</button></div>`;
+                } else if(act === 'pagar') {
+                    area.innerHTML = `<div class="card"><h3>PAGAMENTO BOLETO</h3><input placeholder="CÓDIGO BARRAS"><input id="pag-val" type="number" placeholder="VAL"><button class="btn" onclick="IBManager.execPay()">PAGAR</button></div>`;
+                }
+            },
+            execPix() {
+                const destId = document.getElementById('pix-dest').value;
+                const val = parseFloat(document.getElementById('pix-val').value);
+                const acc = DB.data.accounts.find(a => a.id == this.user.id);
+                if(acc.balance < val) return alert("FUNDOS INSUFICIENTES");
+                const destAcc = DB.data.accounts.find(a => a.id == destId);
+                acc.balance -= val; acc.hist.push({desc:`PIX > ${destId}`, v:-val, d:new Date().toLocaleDateString('pt-BR')});
+                if(destAcc && destAcc.active !== false) { destAcc.balance += val; destAcc.hist.push({desc:`PIX < ${acc.id}`, v:val, d:new Date().toLocaleDateString('pt-BR')}); }
+                DB.save(); this.updateDash(); alert("ENVIADO");
+            },
+            execPay() {
+                const val = parseFloat(document.getElementById('pag-val').value);
+                const acc = DB.data.accounts.find(a => a.id == this.user.id);
+                if(acc.balance < val) return alert("FUNDOS INSUFICIENTES");
+                acc.balance -= val; acc.hist.push({desc:`PAGAMENTO`, v:-val, d:new Date().toLocaleDateString('pt-BR')});
+                DB.save(); this.updateDash(); alert("PAGO");
+            }
+        };
+
+        const Router = {
+            go(id) {
+                document.querySelectorAll('.view-section').forEach(e => e.classList.remove('active'));
+                document.getElementById('view-'+id).classList.add('active');
+                
+                // --- FIX: Forçar atualização ao navegar ---
+                if(id === 'agencia' && document.getElementById('admin-content').style.display === 'block') {
+                    AgenciaManager.init();
+                }
+                if(id === 'internetbanking' && IBManager.user) {
+                    IBManager.updateDash();
+                }
+            }
+        };
+
+        DB.init(); Router.go('hub');
+    </script>
+</body>
+</html>
