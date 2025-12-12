@@ -1,15 +1,201 @@
+// === SISTEMA DE MODAL ===
+class ModalSystem {
+	static show(title, message, buttons = []) {
+		// Remover modal anterior se existir
+		const existingModal = document.getElementById('modal-overlay');
+		if (existingModal) existingModal.remove();
+		
+		const overlay = document.createElement('div');
+		overlay.id = 'modal-overlay';
+		overlay.style.cssText = `
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.7);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			z-index: 200;
+			animation: fadeIn 0.3s ease-out;
+		`;
+		
+		const modal = document.createElement('div');
+		modal.style.cssText = `
+			background: #001100;
+			border: 2px solid var(--matrix-green);
+			padding: 30px;
+			max-width: 500px;
+			width: 90%;
+			border-radius: 3px;
+			box-shadow: 0 0 30px rgba(0, 255, 65, 0.3);
+			animation: slideIn 0.3s ease-out;
+		`;
+		
+		const titleEl = document.createElement('h2');
+		titleEl.textContent = title;
+		titleEl.style.cssText = `
+			color: var(--matrix-green);
+			margin-bottom: 15px;
+			border-bottom: 1px solid var(--matrix-dark);
+			padding-bottom: 10px;
+		`;
+		
+		const msgEl = document.createElement('p');
+		msgEl.textContent = message;
+		msgEl.style.cssText = `
+			color: #ddd;
+			margin-bottom: 20px;
+			line-height: 1.5;
+		`;
+		
+		const buttonsContainer = document.createElement('div');
+		buttonsContainer.style.cssText = `
+			display: flex;
+			gap: 10px;
+			justify-content: flex-end;
+		`;
+		
+		// Botão padrão de fechar
+		if (buttons.length === 0) {
+			const closeBtn = document.createElement('button');
+			closeBtn.className = 'btn';
+			closeBtn.textContent = 'FECHAR';
+			closeBtn.onclick = () => overlay.remove();
+			buttonsContainer.appendChild(closeBtn);
+		} else {
+			buttons.forEach(btn => {
+				const btnEl = document.createElement('button');
+				btnEl.className = btn.type === 'danger' ? 'btn btn-danger' : btn.type === 'success' ? 'btn btn-success' : 'btn';
+				btnEl.textContent = btn.text;
+				btnEl.onclick = () => {
+					btn.callback();
+					overlay.remove();
+				};
+				buttonsContainer.appendChild(btnEl);
+			});
+		}
+		
+		modal.appendChild(titleEl);
+		modal.appendChild(msgEl);
+		modal.appendChild(buttonsContainer);
+		overlay.appendChild(modal);
+		document.body.appendChild(overlay);
+		
+		// Fechar ao clicar fora
+		overlay.addEventListener('click', (e) => {
+			if (e.target === overlay) overlay.remove();
+		});
+		
+		// Fechar com Esc
+		const closeOnEsc = (e) => {
+			if (e.key === 'Escape') {
+				overlay.remove();
+				document.removeEventListener('keydown', closeOnEsc);
+			}
+		};
+		document.addEventListener('keydown', closeOnEsc);
+	}
+	
+	static confirm(title, message, onConfirm, onCancel) {
+		this.show(title, message, [
+			{
+				text: 'CONFIRMAR',
+				type: 'success',
+				callback: onConfirm
+			},
+			{
+				text: 'CANCELAR',
+				type: 'danger',
+				callback: onCancel || (() => {})
+			}
+		]);
+	}
+}
+
+// === SISTEMA DE VALIDAÇÃO E SANITIZAÇÃO ===
+class ValidationSystem {
+	static sanitizeInput(input) {
+		if (typeof input !== 'string') return input;
+		return input
+			.replace(/[<>]/g, '')
+			.replace(/javascript:/gi, '')
+			.trim();
+	}
+	
+	static validateEmail(email) {
+		const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		return re.test(email);
+	}
+	
+	static validateCPF(cpf) {
+		cpf = cpf.replace(/\D/g, '');
+		if (cpf.length !== 11) return false;
+		if (/^(\d)\1{10}$/.test(cpf)) return false;
+		
+		let sum = 0, remainder;
+		for (let i = 1; i <= 9; i++) {
+			sum += parseInt(cpf.substring(i - 1, i)) * (11 - i);
+		}
+		remainder = (sum * 10) % 11;
+		if (remainder === 10 || remainder === 11) remainder = 0;
+		if (remainder !== parseInt(cpf.substring(9, 10))) return false;
+		
+		sum = 0;
+		for (let i = 1; i <= 10; i++) {
+			sum += parseInt(cpf.substring(i - 1, i)) * (12 - i);
+		}
+		remainder = (sum * 10) % 11;
+		if (remainder === 10 || remainder === 11) remainder = 0;
+		if (remainder !== parseInt(cpf.substring(10, 11))) return false;
+		
+		return true;
+	}
+	
+	static validateAmount(amount, min = 0, max = Infinity) {
+		const num = parseFloat(amount);
+		return !isNaN(num) && num >= min && num <= max;
+	}
+	
+	static validateTransactionLimit(amount, accountType = 'regular') {
+		const limits = {
+			regular: 50000,
+			premium: 500000,
+			admin: Infinity
+		};
+		return amount <= (limits[accountType] || limits.regular);
+	}
+}
+
 // === SISTEMA DE NOTIFICAÇÕES ===
 class NotificationSystem {
 	static show(title, message, type = 'info', duration = 5000) {
-		const container = document.getElementById('notifications');
+		let container = document.getElementById('notifications');
+		if (!container) {
+			container = document.createElement('div');
+			container.id = 'notifications';
+			document.body.appendChild(container);
+		}
 		const notification = document.createElement('div');
 		notification.className = `notification ${type}`;
 		
-		notification.innerHTML = `
-			<button class="close" onclick="this.parentElement.remove()">×</button>
-			<div class="title">${title}</div>
-			<div class="message">${message}</div>
-		`;
+		const closeBtn = document.createElement('button');
+		closeBtn.className = 'close';
+		closeBtn.textContent = '×';
+		closeBtn.onclick = () => notification.remove();
+		
+		const titleDiv = document.createElement('div');
+		titleDiv.className = 'title';
+		titleDiv.textContent = title;
+		
+		const messageDiv = document.createElement('div');
+		messageDiv.className = 'message';
+		messageDiv.textContent = message;
+		
+		notification.appendChild(closeBtn);
+		notification.appendChild(titleDiv);
+		notification.appendChild(messageDiv);
 		
 		container.appendChild(notification);
 		
@@ -51,14 +237,21 @@ class Console {
 	
 	static log(message, type = 'info') {
 		const container = document.getElementById('console-content');
+		if (!container) return; // Console não inicializado
+		
 		const entry = document.createElement('div');
 		entry.className = `log-entry ${type}`;
 		
 		const time = new Date().toLocaleTimeString();
-		entry.innerHTML = `
-			<div class="log-time">${time}</div>
-			<div>${message}</div>
-		`;
+		const timeDiv = document.createElement('div');
+		timeDiv.className = 'log-time';
+		timeDiv.textContent = `${time}`;
+		
+		const msgDiv = document.createElement('div');
+		msgDiv.textContent = message;
+		
+		entry.appendChild(timeDiv);
+		entry.appendChild(msgDiv);
 		
 		container.appendChild(entry);
 		container.scrollTop = container.scrollHeight;
@@ -127,7 +320,13 @@ function drawMatrix() {
 	}
 }
 
-setInterval(drawMatrix, 50);
+let matrixAnimationId;
+function animateMatrix() {
+	drawMatrix();
+	matrixAnimationId = requestAnimationFrame(animateMatrix);
+}
+matrixAnimationId = requestAnimationFrame(animateMatrix);
+
 window.addEventListener('resize', () => { 
 	canvas.width = window.innerWidth; 
 	canvas.height = window.innerHeight; 
@@ -202,10 +401,10 @@ const DB = {
 				atmD: this.createAtm(1800)
 			},
 			accounts: [
-				{id:1, name:"Neo", balance:1000000, pw:"123", pt:"1234", hist:[], active:true, createdAt:new Date().toISOString()},
-				{id:2, name:"Trinity", balance:1000000, pw:"123", pt:"1234", hist:[], active:true, createdAt:new Date().toISOString()},
-				{id:3, name:"Morpheus", balance:1000000, pw:"123", pt:"1234", hist:[], active:true, createdAt:new Date().toISOString()},
-				{id:4, name:"Smith", balance:1000000, pw:"123", pt:"1234", hist:[], active:true, createdAt:new Date().toISOString()}
+				{id:1, name:"Neo", balance:1000000, pw:"123", pt:"1234", hist:[], active:true, createdAt:new Date().toISOString(), creditCards: [], loans: [], overdraft: {limit: 5000, used: 0}},
+				{id:2, name:"Trinity", balance:1000000, pw:"123", pt:"1234", hist:[], active:true, createdAt:new Date().toISOString(), creditCards: [], loans: [], overdraft: {limit: 5000, used: 0}},
+				{id:3, name:"Morpheus", balance:1000000, pw:"123", pt:"1234", hist:[], active:true, createdAt:new Date().toISOString(), creditCards: [], loans: [], overdraft: {limit: 5000, used: 0}},
+				{id:4, name:"Smith", balance:1000000, pw:"123", pt:"1234", hist:[], active:true, createdAt:new Date().toISOString(), creditCards: [], loans: [], overdraft: {limit: 5000, used: 0}}
 			],
 			systemLogs: []
 		};
@@ -228,8 +427,8 @@ const DB = {
 		const log = {
 			timestamp: new Date().toISOString(),
 			operation: operation,
-			details: details,
-			user: details.user || 'system'
+			details: typeof details === 'object' ? JSON.stringify(details) : String(details),
+			user: (typeof details === 'object' && details?.user) || 'system'
 		};
 		
 		this.data.systemLogs.push(log);
@@ -246,12 +445,17 @@ const DB = {
 
 // === GESTÃO DE ABAS ===
 const Tabs = {
-	show(id) {
+	show(id, btnEl) {
 		Console.log(`Navegando para aba: ${id}`, 'info');
 		document.querySelectorAll('[id^="tab-"]').forEach(e => e.style.display = 'none');
-		document.getElementById('tab-'+id).style.display = 'block';
+		const view = document.getElementById('tab-'+id);
+		if (!view) {
+			NotificationSystem.warning('Aba inexistente', `tab-${id} não encontrada`);
+			return;
+		}
+		view.style.display = 'block';
 		document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-		event.target.classList.add('active');
+		if (btnEl) btnEl.classList.add('active');
 		
 		if (id === 'logs') {
 			this.loadLogs();
@@ -617,7 +821,10 @@ const AgenciaManager = {
 			pt: pt, 
 			hist: [], 
 			active: true,
-			createdAt: new Date().toISOString()
+			createdAt: new Date().toISOString(),
+			creditCards: [],
+			loans: [],
+			overdraft: {limit: 5000, used: 0}
 		};
 		
 		DB.data.accounts.push(newAccount);
@@ -718,6 +925,12 @@ const AtendimentoManager = {
 			return;
 		}
 		
+		// Validar limite de transação
+		if (!ValidationSystem.validateTransactionLimit(val, 'regular')) {
+			NotificationSystem.error('Limite de Transação', 'Valor excede o limite de transação permitido');
+			return;
+		}
+		
 		if(this.curr !== 'caixa' && !Number.isInteger(val)) {
 			NotificationSystem.error('Erro de Validação', 'Apenas valores inteiros são aceitos nos terminais automáticos');
 			return;
@@ -784,8 +997,18 @@ const AtendimentoManager = {
 				if(this.curr === 'caixa') {
 					DB.data.humanCashier += val;
 				} else { 
-					const atm = DB.data.atms[this.curr]; 
-					atm.drawers[0].count += Math.floor(val/100); 
+					const atm = DB.data.atms[this.curr];
+					// Distribuir depósito pelas denominações em ordem descrescente
+					let remaining = val;
+					const drawers = [...atm.drawers].sort((a,b) => b.face - a.face);
+					for(let d of drawers) {
+						if(remaining <= 0) break;
+						const notes = Math.floor(remaining / d.face);
+						if(notes > 0 && d.count + notes <= d.max) {
+							d.count += notes;
+							remaining -= notes * d.face;
+						}
+					}
 				}
 				
 				acc.hist.push({
@@ -987,6 +1210,50 @@ const IBManager = {
 				</div>
 			`;
 			this.updateInvestmentsList();
+			
+		} else if(act === 'emprestimos') {
+			this.loadLoans();
+			const currentBalance = this.user.balance;
+			area.innerHTML = `
+				<div class="card">
+					<h3>CENTRAL DE EMPRÉSTIMOS</h3>
+					<p style="margin-bottom: 20px; font-size: 0.9rem; color: #666;">
+						Saldo disponível: <span style="color: var(--matrix-green); font-weight: bold;">R$ ${currentBalance.toLocaleString('pt-BR')}</span>
+					</p>
+					
+					<div class="card" style="border-color: var(--warn); margin-bottom: 15px;">
+						<h4 style="margin-bottom: 15px; color: var(--warn);">
+							<i class="fas fa-hand-holding-usd"></i> SOLICITAR EMPRÉSTIMO
+						</h4>
+						<p style="margin-bottom: 15px; font-size: 0.9rem;">Taxa: 2% ao mês | Limite: R$ 100.000,00</p>
+						<input id="loan-amount" type="number" placeholder="VALOR DO EMPRÉSTIMO" min="1000" max="100000">
+						<label style="font-size: 0.9rem; margin-bottom: 10px; display: block;">Prazo (meses):</label>
+						<input id="loan-term" type="number" placeholder="12" min="3" max="60" value="12">
+						<button class="btn btn-warn" onclick="IBManager.requestLoan()">SOLICITAR</button>
+					</div>
+					
+					<!-- Lista de Empréstimos -->
+					<div style="margin-top: 20px;">
+						<h4 style="margin-bottom: 15px; color: var(--matrix-green);">MEUS EMPRÉSTIMOS</h4>
+						<div id="loans-container"></div>
+					</div>
+				</div>
+			`;
+			
+		} else if(act === 'cartoes') {
+			this.loadCreditCards();
+			area.innerHTML = `
+				<div class="card">
+					<h3>CARTÕES DE CRÉDITO</h3>
+					<button class="btn btn-success" style="margin-bottom: 20px;" onclick="IBManager.requestCreditCard()">+ SOLICITAR NOVO CARTÃO</button>
+					
+					<!-- Lista de Cartões -->
+					<div id="cards-container"></div>
+				</div>
+			`;
+			
+		} else if(act === 'relatorios') {
+			area.innerHTML = IBManager.generateReport();
 		}
 	},
 	
@@ -1244,6 +1511,348 @@ const IBManager = {
 			const profit = withdrawAmount - investment.amount;
 			NotificationSystem.success('Resgate Realizado', `R$ ${withdrawAmount.toFixed(2)} resgatados (Lucro: R$ ${profit.toFixed(2)})`);
 		}
+	},
+	
+	// Solicitar empréstimo
+	requestLoan() {
+		const loanAmount = parseFloat(document.getElementById('loan-amount')?.value);
+		const loanTerm = parseInt(document.getElementById('loan-term')?.value) || 12;
+		
+		if(!loanAmount || loanAmount <= 0) {
+			NotificationSystem.error('Erro de Validação', 'Por favor, insira um valor válido para empréstimo');
+			return;
+		}
+		
+		if(loanAmount > 100000) {
+			NotificationSystem.error('Limite Excedido', 'Limite máximo de empréstimo é R$ 100.000,00');
+			return;
+		}
+		
+		const acc = DB.data.accounts.find(a => a.id == this.user.id);
+		
+		// Aplicar taxa de juros (2% ao mês)
+		const monthlyRate = 0.02;
+		const totalAmount = loanAmount * Math.pow(1 + monthlyRate, loanTerm);
+		const monthlyPayment = totalAmount / loanTerm;
+		
+		const loan = {
+			id: Date.now(),
+			amount: loanAmount,
+			totalAmount: totalAmount,
+			monthlyPayment: monthlyPayment,
+			remainingAmount: totalAmount,
+			term: loanTerm,
+			monthsRemaining: loanTerm,
+			createdAt: new Date().toLocaleDateString('pt-BR'),
+			status: 'ATIVO'
+		};
+		
+		acc.loans.push(loan);
+		acc.balance += loanAmount;
+		
+		acc.hist.push({
+			desc: `EMPRÉSTIMO APROVADO`,
+			v: loanAmount,
+			d: new Date().toLocaleDateString('pt-BR'),
+			type: 'EMPRESTIMO'
+		});
+		
+		DB.logOperation('EMPRESTIMO_SOLICITADO', `R$ ${loanAmount.toFixed(2)} emprestados - ${loanTerm} meses`);
+		DB.save();
+		this.updateDash();
+		this.loadLoans();
+		
+		NotificationSystem.success('Empréstimo Aprovado', `R$ ${loanAmount.toFixed(2)} creditados na conta`);
+	},
+	
+	// Pagar parcela de empréstimo
+	payLoanInstallment(loanId) {
+		const acc = DB.data.accounts.find(a => a.id == this.user.id);
+		const loan = acc.loans.find(l => l.id == loanId);
+		
+		if (!loan) return;
+		
+		if(acc.balance < loan.monthlyPayment) {
+			NotificationSystem.error('Saldo Insuficiente', 'Saldo insuficiente para pagar a parcela');
+			return;
+		}
+		
+		acc.balance -= loan.monthlyPayment;
+		loan.remainingAmount -= loan.monthlyPayment;
+		loan.monthsRemaining--;
+		
+		acc.hist.push({
+			desc: `PAGAMENTO EMPRÉSTIMO`,
+			v: -loan.monthlyPayment,
+			d: new Date().toLocaleDateString('pt-BR'),
+			type: 'PGTO_EMPR'
+		});
+		
+		if(loan.monthsRemaining <= 0) {
+			loan.status = 'QUITADO';
+		}
+		
+		DB.logOperation('PAGAMENTO_EMPRESTIMO', `R$ ${loan.monthlyPayment.toFixed(2)} pagos`);
+		DB.save();
+		this.updateDash();
+		this.loadLoans();
+		
+		NotificationSystem.success('Parcela Paga', `R$ ${loan.monthlyPayment.toFixed(2)} debitados - ${loan.monthsRemaining} parcelas restantes`);
+	},
+	
+	// Solicitar cartão de crédito
+	requestCreditCard() {
+		const acc = DB.data.accounts.find(a => a.id == this.user.id);
+		
+		// Gerar número de cartão
+		const cardNumber = Math.floor(Math.random() * 10000000000000000).toString().padStart(16, '0');
+		const cardCVV = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+		
+		const creditCard = {
+			id: Date.now(),
+			number: cardNumber,
+			cvv: cardCVV,
+			limit: 10000,
+			used: 0,
+			dueDate: '15',
+			createdAt: new Date().toLocaleDateString('pt-BR'),
+			status: 'ATIVO',
+			transactions: []
+		};
+		
+		acc.creditCards.push(creditCard);
+		
+		acc.hist.push({
+			desc: `CARTÃO CRÉDITO EMITIDO`,
+			v: 0,
+			d: new Date().toLocaleDateString('pt-BR'),
+			type: 'CARTAO'
+		});
+		
+		DB.logOperation('CARTAO_EMITIDO', `Cartão final ${cardNumber.slice(-4)} emitido com limite de R$ ${creditCard.limit.toFixed(2)}`);
+		DB.save();
+		
+		NotificationSystem.success('Cartão Aprovado', `Cartão emitido com limite de R$ ${creditCard.limit.toFixed(2)}`);
+		this.loadCreditCards();
+	},
+	
+	// Usar cartão de crédito
+	useCard(cardId, amount) {
+		const acc = DB.data.accounts.find(a => a.id == this.user.id);
+		const card = acc.creditCards.find(c => c.id == cardId);
+		
+		if(!card || card.status !== 'ATIVO') {
+			NotificationSystem.error('Cartão Inválido', 'Cartão não está ativo');
+			return;
+		}
+		
+		if(card.used + amount > card.limit) {
+			NotificationSystem.error('Limite Excedido', `Limite disponível: R$ ${(card.limit - card.used).toFixed(2)}`);
+			return;
+		}
+		
+		card.used += amount;
+		card.transactions.push({
+			amount: amount,
+			date: new Date().toLocaleDateString('pt-BR'),
+			description: 'Compra no débito'
+		});
+		
+		acc.hist.push({
+			desc: `COMPRA CARTÃO`,
+			v: -amount,
+			d: new Date().toLocaleDateString('pt-BR'),
+			type: 'CARTAO'
+		});
+		
+		DB.logOperation('COMPRA_CARTAO', `Compra de R$ ${amount.toFixed(2)} no cartão final ${card.number.slice(-4)}`);
+		DB.save();
+		
+		NotificationSystem.success('Compra Realizada', `R$ ${amount.toFixed(2)} debitados do cartão`);
+	},
+	
+	// Pagar fatura de cartão
+	payCardBill(cardId) {
+		const acc = DB.data.accounts.find(a => a.id == this.user.id);
+		const card = acc.creditCards.find(c => c.id == cardId);
+		
+		if(!card) return;
+		
+		if(acc.balance < card.used) {
+			NotificationSystem.error('Saldo Insuficiente', 'Saldo insuficiente para pagar a fatura');
+			return;
+		}
+		
+		const billAmount = card.used;
+		acc.balance -= billAmount;
+		card.used = 0;
+		
+		acc.hist.push({
+			desc: `PAGAMENTO FATURA CARTÃO`,
+			v: -billAmount,
+			d: new Date().toLocaleDateString('pt-BR'),
+			type: 'CARTAO'
+		});
+		
+		DB.logOperation('PAGAMENTO_FATURA', `Fatura de R$ ${billAmount.toFixed(2)} paga`);
+		DB.save();
+		this.updateDash();
+		this.loadCreditCards();
+		
+		NotificationSystem.success('Fatura Paga', `R$ ${billAmount.toFixed(2)} debitados - Fatura quitada`);
+	},
+	
+	// Carregar empréstimos
+	loadLoans() {
+		const acc = DB.data.accounts.find(a => a.id == this.user.id);
+		const loansContainer = document.getElementById('loans-container');
+		if (!loansContainer) return;
+		
+		if (!acc.loans || acc.loans.length === 0) {
+			loansContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Nenhum empréstimo ativo</div>';
+			return;
+		}
+		
+		loansContainer.innerHTML = acc.loans.map(loan => `
+			<div class="loan-item" style="background: rgba(0, 20, 0, 0.8); border: 1px solid ${loan.status === 'ATIVO' ? 'var(--warn)' : 'var(--success)'}; padding: 15px; margin-bottom: 10px; border-radius: 3px;">
+				<div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+					<div style="color: ${loan.status === 'ATIVO' ? 'var(--warn)' : 'var(--success)'}; font-weight: bold;">
+						EMPRÉSTIMO ${loan.status}
+					</div>
+					<div style="color: var(--matrix-green);">R$ ${loan.remainingAmount.toFixed(2)}</div>
+				</div>
+				<div style="font-size: 0.85rem; color: #999; margin-bottom: 10px;">
+					<div>Valor original: R$ ${loan.amount.toFixed(2)}</div>
+					<div>Parcela: R$ ${loan.monthlyPayment.toFixed(2)}</div>
+					<div>Parcelas restantes: ${loan.monthsRemaining}</div>
+				</div>
+				${loan.status === 'ATIVO' ? `<button class="btn btn-success btn-small" onclick="IBManager.payLoanInstallment(${loan.id})">PAGAR PARCELA</button>` : '<span class="status-online">● QUITADO</span>'}
+			</div>
+		`).join('');
+	},
+	
+	// Carregar cartões de crédito
+	loadCreditCards() {
+		const acc = DB.data.accounts.find(a => a.id == this.user.id);
+		const cardsContainer = document.getElementById('cards-container');
+		if (!cardsContainer) return;
+		
+		if (!acc.creditCards || acc.creditCards.length === 0) {
+			cardsContainer.innerHTML = '<div style="text-align: center; color: #666; padding: 20px;">Nenhum cartão de crédito</div>';
+			return;
+		}
+		
+		cardsContainer.innerHTML = acc.creditCards.map(card => `
+			<div class="credit-card" style="background: linear-gradient(135deg, #004400 0%, #001100 100%); border: 2px solid var(--matrix-green); padding: 20px; margin-bottom: 15px; border-radius: 5px; box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);">
+				<div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+					<div style="color: var(--matrix-green); font-weight: bold;">MATRIZ CARD</div>
+					<div style="color: var(--success); font-size: 0.9rem;">● ${card.status}</div>
+				</div>
+				<div style="font-size: 1.3rem; letter-spacing: 2px; color: var(--matrix-green); font-weight: bold; margin-bottom: 10px;">
+					•••• •••• •••• ${card.number.slice(-4)}
+				</div>
+				<div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
+					<div>
+						<div style="color: #666;">Limite</div>
+						<div style="color: var(--matrix-green); font-weight: bold;">R$ ${card.limit.toFixed(2)}</div>
+					</div>
+					<div>
+						<div style="color: #666;">Utilizado</div>
+						<div style="color: ${card.used > 0 ? 'var(--alert)' : 'var(--success)'}; font-weight: bold;">R$ ${card.used.toFixed(2)}</div>
+					</div>
+					<div>
+						<div style="color: #666;">Disponível</div>
+						<div style="color: var(--success); font-weight: bold;">R$ ${(card.limit - card.used).toFixed(2)}</div>
+					</div>
+				</div>
+				<div style="margin-top: 15px; display: flex; gap: 10px;">
+					<button class="btn btn-success btn-small" onclick="IBManager.payCardBill(${card.id})">PAGAR FATURA</button>
+				</div>
+			</div>
+		`).join('');
+	},
+	
+	// Gerar relatório detalhado
+	generateReport() {
+		const acc = DB.data.accounts.find(a => a.id == this.user.id);
+		
+		// Calcular estatísticas
+		const totalIncome = acc.hist.filter(h => h.v > 0).reduce((sum, h) => sum + h.v, 0);
+		const totalExpense = acc.hist.filter(h => h.v < 0).reduce((sum, h) => sum + Math.abs(h.v), 0);
+		const transactionCount = acc.hist.length;
+		
+		// Agrupar por tipo
+		const byType = {};
+		acc.hist.forEach(h => {
+			const type = h.type || 'GERAL';
+			if (!byType[type]) byType[type] = { count: 0, total: 0 };
+			byType[type].count++;
+			byType[type].total += Math.abs(h.v);
+		});
+		
+		// Últimos 30 dias
+		const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+		const last30Days = acc.hist.filter(h => new Date(h.d) > thirtyDaysAgo);
+		
+		let reportHTML = `
+			<div class="card">
+				<h3>RELATÓRIO FINANCEIRO DETALHADO</h3>
+				
+				<div class="grid-3" style="margin-bottom: 20px;">
+					<div style="background: rgba(0, 255, 65, 0.1); padding: 15px; border: 1px solid var(--matrix-green); border-radius: 3px;">
+						<div style="color: #666; font-size: 0.8rem;">Saldo Atual</div>
+						<div style="color: var(--matrix-green); font-weight: bold; font-size: 1.5rem;">R$ ${acc.balance.toLocaleString('pt-BR')}</div>
+					</div>
+					<div style="background: rgba(0, 255, 136, 0.1); padding: 15px; border: 1px solid var(--success); border-radius: 3px;">
+						<div style="color: #666; font-size: 0.8rem;">Receitas</div>
+						<div style="color: var(--success); font-weight: bold; font-size: 1.5rem;">R$ ${totalIncome.toLocaleString('pt-BR')}</div>
+					</div>
+					<div style="background: rgba(255, 0, 64, 0.1); padding: 15px; border: 1px solid var(--alert); border-radius: 3px;">
+						<div style="color: #666; font-size: 0.8rem;">Despesas</div>
+						<div style="color: var(--alert); font-weight: bold; font-size: 1.5rem;">R$ ${totalExpense.toLocaleString('pt-BR')}</div>
+					</div>
+				</div>
+				
+				<div class="grid-2" style="margin-bottom: 20px;">
+					<div style="background: rgba(0, 20, 0, 0.8); border: 1px solid var(--matrix-dark); padding: 15px; border-radius: 3px;">
+						<h4 style="color: var(--matrix-green); margin-bottom: 10px;">Últimos 30 Dias</h4>
+						<div style="font-size: 0.9rem;">
+							<div>Transações: ${last30Days.length}</div>
+							<div>Receitas: R$ ${last30Days.filter(h => h.v > 0).reduce((s, h) => s + h.v, 0).toLocaleString('pt-BR')}</div>
+							<div>Despesas: R$ ${Math.abs(last30Days.filter(h => h.v < 0).reduce((s, h) => s + h.v, 0)).toLocaleString('pt-BR')}</div>
+						</div>
+					</div>
+					
+					<div style="background: rgba(0, 20, 0, 0.8); border: 1px solid var(--matrix-dark); padding: 15px; border-radius: 3px;">
+						<h4 style="color: var(--matrix-green); margin-bottom: 10px;">Estatísticas Gerais</h4>
+						<div style="font-size: 0.9rem;">
+							<div>Total de Transações: ${transactionCount}</div>
+							<div>Ticket Médio: R$ ${(totalExpense / (acc.hist.filter(h => h.v < 0).length || 1)).toLocaleString('pt-BR')}</div>
+							<div>Saldo Médio: R$ ${(acc.balance).toLocaleString('pt-BR')}</div>
+						</div>
+					</div>
+				</div>
+				
+				<h4 style="color: var(--matrix-green); margin-bottom: 10px;">Movimentação por Tipo</h4>
+				<div style="background: rgba(0, 20, 0, 0.8); border: 1px solid var(--matrix-dark); padding: 15px; border-radius: 3px; max-height: 300px; overflow-y: auto;">
+					${Object.entries(byType).map(([type, data]) => `
+						<div style="padding: 8px; border-bottom: 1px solid #111; display: flex; justify-content: space-between;">
+							<div>
+								<div style="color: var(--matrix-green); font-weight: bold;">${type}</div>
+								<div style="font-size: 0.8rem; color: #666;">${data.count} operação(ões)</div>
+							</div>
+							<div style="color: var(--success); font-weight: bold;">R$ ${data.total.toLocaleString('pt-BR')}</div>
+						</div>
+					`).join('')}
+				</div>
+				
+				<div style="margin-top: 15px; display: flex; gap: 10px;">
+					<button class="btn btn-success" onclick="IBManager.exportStatement()">EXPORTAR RELATÓRIO</button>
+				</div>
+			</div>
+		`;
+		
+		return reportHTML;
 	}
 };
 
@@ -1281,7 +1890,8 @@ const Router = {
 		Object.keys(DB.data.atms).forEach(id => {
 			const atm = DB.data.atms[id];
 			const total = AgenciaManager.getAtmTotal(atm);
-			const pct = (total / (atm.drawers.reduce((sum, d) => sum + d.count * d.max, 0))) * 100;
+			const maxCapacity = atm.drawers.reduce((sum, d) => sum + (d.face * d.max), 0);
+			const pct = (total / maxCapacity) * 100;
 			
 			statusContainer.innerHTML += `
 				<div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border:1px solid var(--matrix-dark); margin-bottom:5px;">
@@ -1359,8 +1969,11 @@ document.addEventListener('DOMContentLoaded', function() {
 	DB.init();
 	ScrollControls.init();
 	
-	// Configurar console toggle
-	document.getElementById('console-toggle').addEventListener('click', Console.toggle);
+	// Configurar console toggle com verificação
+	const consoleToggle = document.getElementById('console-toggle');
+	if (consoleToggle) {
+		consoleToggle.addEventListener('click', () => Console.toggle());
+	}
 	
 	// Carregar stats iniciais
 	AgenciaManager.updateHubStats();
